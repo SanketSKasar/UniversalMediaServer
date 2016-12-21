@@ -214,7 +214,7 @@ public class ImagesUtil {
 	 * @return The converted image, {@code null} if the source is {@code null}
 	 *         or the source image if the operation fails.
 	 */
-	public static InputStream convertImage(InputStream imageInputStream, ImageFormat outputFormat) {
+	public static ByteArrayInputStream convertImage(InputStream imageInputStream, ImageFormat outputFormat) {
 		if (imageInputStream == null) {
 			return null;
 		}

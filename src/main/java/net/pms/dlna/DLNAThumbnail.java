@@ -62,7 +62,6 @@ public class DLNAThumbnail implements Serializable {
 	 * @param format the {@link ImageFormat} of the source image.
 	 * @param copy whether the source image should be copied or shared.
 	 */
-	@SuppressFBWarnings("EI_EXPOSE_REP2")
 	public DLNAThumbnail(byte[] bytes, int width, int height, ImageFormat format, boolean copy) {
 		if (copy && bytes != null) {
 			this.bytes = new byte[bytes.length];
