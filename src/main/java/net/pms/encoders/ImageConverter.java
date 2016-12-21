@@ -1,7 +1,5 @@
 package net.pms.encoders;
 import java.awt.Font;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -9,8 +7,6 @@ import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
 import javax.swing.JComponent;
-import javax.swing.JTextField;
-
 import net.pms.Messages;
 import net.pms.configuration.FormatConfiguration;
 import net.pms.dlna.DLNAMediaInfo;
