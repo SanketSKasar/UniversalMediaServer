@@ -73,6 +73,7 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	private volatile ImageMetaData thumbnailMetaData = null;
 	protected PmsConfiguration configuration = PMS.getConfiguration();
 //	private boolean subsAreValidForStreaming = false;
+	private long transcodedImageLength = 0;
 
 	protected static final int MAX_ARCHIVE_ENTRY_SIZE = 10000000;
 	protected static final int MAX_ARCHIVE_SIZE_SEEK = 800000000;
@@ -418,6 +419,14 @@ public abstract class DLNAResource extends HTTPResource implements Cloneable, Ru
 	// Ditlew
 	public long length(RendererConfiguration mediaRenderer) {
 		return length();
+	}
+
+	public long getTranscodedImageLength() {
+		return transcodedImageLength;
+	}
+
+	public void setTranscodedImageLength(long transcodedLength) {
+		this.transcodedImageLength = transcodedLength;
 	}
 
 	public abstract InputStream getInputStream() throws IOException;

@@ -71,10 +71,10 @@ public class ImageConverter extends Player {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		ImageIO.write(bufferedImage, FormatConfiguration.JPG, baos);
 		ByteArrayInputStream imageInputStream = new ByteArrayInputStream(ImagesUtil.scaleImage(baos.toByteArray(), w, h, null, ImageFormat.JPEG, true));
-		media.setSize(imageInputStream.available());
-		media.setCodecV(FormatConfiguration.JPG);
-		media.setContainer(FormatConfiguration.JPG);
-		media.setMimeType(mimeType());
+		dlna.setTranscodedImageLength(imageInputStream.available());
+		dlna.getMedia().setCodecV(FormatConfiguration.JPG);
+		dlna.getMedia().setContainer(FormatConfiguration.JPG);
+		dlna.getMedia().setMimeType(mimeType());
 		return new InternalJavaProcessImpl(imageInputStream);
 	}
 
