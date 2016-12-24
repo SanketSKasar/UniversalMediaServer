@@ -26,7 +26,7 @@ import net.pms.dlna.RootFolder;
 import net.pms.network.HTTPResource;
 import net.pms.newgui.DbgPacker;
 import net.pms.util.FullyPlayed;
-import net.pms.util.ImagesUtil.ImageFormat;
+import net.pms.util.ImageFormat;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;

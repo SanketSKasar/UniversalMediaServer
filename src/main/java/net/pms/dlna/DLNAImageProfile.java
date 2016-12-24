@@ -19,23 +19,39 @@
  */
 package net.pms.dlna;
 
+import java.awt.Dimension;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.pms.util.ImagesUtil.ImageFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.drew.imaging.png.PngColorType;
+import com.drew.metadata.MetadataException;
+import com.drew.metadata.exif.ExifDirectoryBase;
+import com.drew.metadata.exif.ExifSubIFDDirectory;
+import com.drew.metadata.gif.GifHeaderDirectory;
+import com.drew.metadata.jfif.JfifDirectory;
+import com.drew.metadata.png.PngDirectory;
+import net.pms.util.ImageFormat;
 
 
 /**
- * Definition of the different DLNA media profiles for images. If more
- * are added, corresponding changes need to be made in
+ * Definition and validation of the different DLNA media profiles for images.
+ * If more are added, corresponding changes need to be made in
  * {@link ImageFormat#fromImageProfile}.
  *
  * Please note: Only the profile constant (e.g {@code JPEG_TN} is taken into
  * consideration in {@link #equals(Object)} and {@link #hashCode()}, metadata
- * like {@code H} and {@code V} aren't taken into account.
+ * like {@code H} and {@code V} aren't compared. This means that:
+ * <p>
+ * {@code DLNAImageProfile.JPEG_RES_H_V.equals(DLNAImageProfile.JPEG_RES_H_V)}
+ * <p>
+ * is true even if {@code H} and {@code V} are different in the two profiles.
  */
 public class DLNAImageProfile {
 
+	private static final Logger LOGGER = LoggerFactory.getLogger(DLNAImageProfile.class);
 	public static final int GIF_LRG_INT = 1;
 	public static final int JPEG_LRG_INT = 2;
 	public static final int JPEG_MED_INT = 3;
@@ -57,17 +73,17 @@ public class DLNAImageProfile {
 	/**
 	 * {@code GIF_LRG} maximum resolution 1600 x 1200.
 	 */
-	public static final DLNAImageProfile GIF_LRG = new DLNAImageProfile(GIF_LRG_INT, "GIF_LRG");
+	public static final DLNAImageProfile GIF_LRG = new DLNAImageProfile(GIF_LRG_INT, "GIF_LRG", 1600, 1200);
 
 	/**
 	 * {@code JPEG_LRG} maximum resolution 4096 x 4096.
 	 */
-	public static final DLNAImageProfile JPEG_LRG = new DLNAImageProfile(JPEG_LRG_INT, "JPEG_LRG");
+	public static final DLNAImageProfile JPEG_LRG = new DLNAImageProfile(JPEG_LRG_INT, "JPEG_LRG", 4096, 4096);
 
 	/**
 	 * {@code JPEG_MED} maximum resolution 1024 x 768.
 	 */
-	public static final DLNAImageProfile JPEG_MED = new DLNAImageProfile(JPEG_MED_INT, "JPEG_MED");
+	public static final DLNAImageProfile JPEG_MED = new DLNAImageProfile(JPEG_MED_INT, "JPEG_MED", 1024, 768);
 
 	/**
 	 * {@code JPEG_RES_H_V} exact resolution H x V.<br>
@@ -75,39 +91,40 @@ public class DLNAImageProfile {
 	 * <b>This constant creates an invalid profile, only for use with
 	 * {@link #equals(Object)}.</b><br>
 	 * <br>
-	 * To create a valid profile, use {@link #getJPEG_RES_H_V(int, int)} instead.
+	 * To create a valid profile, use {@link #createJPEG_RES_H_V(int, int)} instead.
 	 */
-	public static final DLNAImageProfile JPEG_RES_H_V = new DLNAImageProfile(JPEG_RES_H_V_INT, "JPEG_RES_H_V");
+	public static final DLNAImageProfile JPEG_RES_H_V = new DLNAImageProfile(JPEG_RES_H_V_INT, "JPEG_RES_H_V", -1, -1);
 
 	/**
 	 * {@code JPEG_SM} maximum resolution 640 x 480.
 	 */
-	public static final DLNAImageProfile JPEG_SM = new DLNAImageProfile(JPEG_SM_INT, "JPEG_SM");
+	public static final DLNAImageProfile JPEG_SM = new DLNAImageProfile(JPEG_SM_INT, "JPEG_SM", 640, 480);
 
 	/**
 	 * {@code JPEG_TN} maximum resolution 160 x 160.
 	 */
-	public static final DLNAImageProfile JPEG_TN = new DLNAImageProfile(JPEG_TN_INT, "JPEG_TN");
+	public static final DLNAImageProfile JPEG_TN = new DLNAImageProfile(JPEG_TN_INT, "JPEG_TN", 160, 160);
 
 	/**
 	 * {@code PNG_LRG} maximum resolution 4096 x 4096.
 	 */
-	public static final DLNAImageProfile PNG_LRG = new DLNAImageProfile(PNG_LRG_INT, "PNG_LRG");
+	public static final DLNAImageProfile PNG_LRG = new DLNAImageProfile(PNG_LRG_INT, "PNG_LRG", 4096, 4096);
 
 	/**
 	 * {@code PNG_TN} maximum resolution 160 x 160.
 	 */
-	public static final DLNAImageProfile PNG_TN = new DLNAImageProfile(PNG_TN_INT, "PNG_TN");
+	public static final DLNAImageProfile PNG_TN = new DLNAImageProfile(PNG_TN_INT, "PNG_TN", 160, 160);
 
 	/**
-	 * {@code JPEG_RES_H_V} defines an exact resolution H x V. Set {@code H}
-	 * and {@code V} for the {@code JPEG_RES_H_V} profile. Not applicable for
-	 * other profiles.
+	 * Creates a new {@link #JPEG_RES_H_V} profile instance with the exact
+	 * resolution H x V. Set {@code H} and {@code V} for this instance. Not
+	 * applicable for other profiles.
 	 *
 	 * @param horizontal the {@code H} value.
 	 * @param vertical the {@code V} value.
+	 * @return The new {@link #JPEG_RES_H_V} instance.
 	 */
-	public static DLNAImageProfile getJPEG_RES_H_V(int horizontal, int vertical) {
+	public static DLNAImageProfile createJPEG_RES_H_V(int horizontal, int vertical) {
 		return new DLNAImageProfile(
 			JPEG_RES_H_V_INT,
 			"JPEG_RES_" + Integer.toString(horizontal) + "_" + Integer.toString(vertical),
@@ -123,16 +140,6 @@ public class DLNAImageProfile {
 
 	/**
 	 * Instantiate a {@link DLNAImageProfile} object.
-	 */
-	private DLNAImageProfile(int imageProfileInt, String imageProfileStr) {
-		this.imageProfileInt = imageProfileInt;
-		this.imageProfileStr = imageProfileStr;
-		this.horizontal = -1;
-		this.vertical = -1;
-	}
-
-	/**
-	 * Instantiate a {@link DLNAImageProfile#JPEG_RES_H_V} object.
 	 */
 	private DLNAImageProfile(int imageProfileInt, String imageProfileStr, int horizontal, int vertical) {
 		this.imageProfileInt = imageProfileInt;
@@ -272,6 +279,9 @@ public class DLNAImageProfile {
 		}
 	}
 
+	/**
+	 * @return The mime type for the given {@link DLNAImageProfile}.
+	 */
 	public String getMimeType() {
 		switch (imageProfileInt) {
 			case GIF_LRG_INT:
@@ -286,27 +296,289 @@ public class DLNAImageProfile {
 			case PNG_TN_INT:
 				return "image/png";
 		}
-		return "image/unknown";
+		throw new IllegalStateException("Unknown image profile: " + this);
 	}
 
 	/**
-	 * Get {@code H} for the {@code JPEG_RES_H_V} profile. Not applicable
-	 * for other profiles.
+	 * Gets the maximum image width for the given {@link DLNAImageProfile}.
 	 *
-	 * @return The {@code H} value.
+	 * @return The value in pixels.
+	 */
+	public int getMaxWidth() {
+		return horizontal;
+	}
+
+	/**
+	 * Get {@code H} for the {@code JPEG_RES_H_V} profile.
+	 *
+	 * @return The {@code H} value in pixels.
 	 */
 	public int getH() {
 		return horizontal;
 	}
 
 	/**
-	 * Get {@code V} for the {@code JPEG_RES_H_V} profile. Not applicable
-	 * for other profiles.
+	 * Gets the maximum image height for the given {@link DLNAImageProfile}.
 	 *
-	 * @return The {@code V} value.
+	 * @return The value in pixels.
+	 */
+	public int getMaxHeight() {
+		return vertical;
+	}
+
+	/**
+	 * Get {@code V} for the {@code JPEG_RES_H_V} profile.
+	 *
+	 * @return The {@code V} value in pixels.
 	 */
 	public int getV() {
 		return vertical;
+	}
+
+	/**
+	 * Get the {@link Dimension} of the maximum image resolution for the given
+	 * {@link DLNAImageProfile}.
+	 *
+	 * @return The {@link Dimension}.
+	 */
+	public Dimension getMaxResolution() {
+		if (horizontal >= 0 && vertical >= 0) {
+			return new Dimension(horizontal, vertical);
+		}
+		return new Dimension();
+	}
+
+	/**
+	 * @return The version number multiplied with 100 (last two digits are decimals).
+	 */
+	protected static int parseExifVersion(byte[] bytes) {
+		if (bytes == null) {
+			return -1;
+		}
+		StringBuilder stringBuilder = new StringBuilder(4);
+		for (byte b : bytes) {
+			stringBuilder.append((char) b);
+		}
+		while (stringBuilder.length() < 4) {
+			stringBuilder.append("0");
+		}
+		return Integer.parseInt(stringBuilder.toString());
+	}
+
+	/**
+	 * Performs GIF compliance checks. The result is stored in
+	 * {@code complianceResult}.
+	 */
+	protected static void checkGIF(ImageInfo imageInfo, InternalComplianceResult complianceResult) throws MetadataException {
+		if (imageInfo == null || imageInfo.getFormat() != ImageFormat.GIF || imageInfo.getMetadata() == null) {
+			return;
+		}
+		complianceResult.formatCorrect = true;
+		GifHeaderDirectory directory = imageInfo.getMetadata() != null ?
+			imageInfo.getMetadata().getFirstDirectoryOfType(GifHeaderDirectory.class) : null
+		;
+		if (directory != null) {
+			if (
+				directory.containsTag(GifHeaderDirectory.TAG_BITS_PER_PIXEL) &&
+				directory.getInt(GifHeaderDirectory.TAG_BITS_PER_PIXEL) <= 8
+			) {
+				complianceResult.colorsCorrect = true;
+			}
+		}
+	}
+
+	/**
+	 * Performs JPEG compliance checks. The result is stored in
+	 * {@code complianceResult}.
+	 */
+	protected static void checkJPEG(ImageInfo imageInfo, InternalComplianceResult complianceResult) throws MetadataException {
+		if (imageInfo == null || imageInfo.getFormat() != ImageFormat.JPEG || imageInfo.getMetadata() == null) {
+			return;
+		}
+		complianceResult.colorsCorrect = true;
+		JfifDirectory jfifDirectory = imageInfo.getMetadata() != null ?
+			imageInfo.getMetadata().getFirstDirectoryOfType(JfifDirectory.class) : null;
+		ExifSubIFDDirectory exifSubIFDirectory = imageInfo.getMetadata() != null ?
+			imageInfo.getMetadata().getFirstDirectoryOfType(ExifSubIFDDirectory.class) : null;
+		if (jfifDirectory != null) {
+			complianceResult.formatCorrect = jfifDirectory.containsTag(JfifDirectory.TAG_VERSION) && jfifDirectory.getVersion() >= 0x102;
+		}
+		if (!complianceResult.formatCorrect && exifSubIFDirectory != null) {
+			complianceResult.formatCorrect =
+				exifSubIFDirectory.containsTag(ExifDirectoryBase.TAG_EXIF_VERSION) &&
+				parseExifVersion(exifSubIFDirectory.getByteArray(ExifDirectoryBase.TAG_EXIF_VERSION)) >= 100;
+		}
+	}
+
+	/**
+	 * Performs PNG compliance checks. The result is stored in
+	 * {@code complianceResult}.
+	 */
+	protected static void checkPNG(ImageInfo imageInfo, InternalComplianceResult complianceResult) throws MetadataException {
+		if (imageInfo == null || imageInfo.getFormat() != ImageFormat.PNG || imageInfo.getMetadata() == null) {
+			return;
+		}
+		Collection<PngDirectory> pngDirectories = imageInfo.getMetadata().getDirectoriesOfType(PngDirectory.class);
+		for (PngDirectory pngDirectory : pngDirectories) {
+			if (pngDirectory.getPngChunkType().getIdentifier().equals("IHDR")) {
+				if (pngDirectory.containsTag(PngDirectory.TAG_COLOR_TYPE)) {
+					switch (PngColorType.fromNumericValue(pngDirectory.getInt(PngDirectory.TAG_COLOR_TYPE))) {
+						case Greyscale:
+						case GreyscaleWithAlpha:
+						case IndexedColor:
+						case TrueColor:
+						case TrueColorWithAlpha:
+							complianceResult.colorsCorrect = true;
+							break;
+						default:
+					}
+				}
+				complianceResult.formatCorrect =
+					pngDirectory.containsTag(PngDirectory.TAG_INTERLACE_METHOD) &&
+					pngDirectory.getInt(PngDirectory.TAG_INTERLACE_METHOD) == 0;
+			}
+		}
+	}
+
+	/**
+	 * Validates DLNA compliance for {@code imageInfo} against the largest
+	 * {@link DLNAImageProfile} for the given {@link ImageFormat}. Validation
+	 * is performed on resolution, format, format version, format compression
+	 * and color coding. The validation result is returned in a
+	 * {@link DLNAComplianceResult} data structure.
+	 *
+	 * @param imageInfo the {@link ImageInfo} for the image to check for DLNA
+	 *                  compliance.
+	 * @param format the {@link ImageFormat} to check for DLNA compliance
+	 *               against.
+	 * @return The validation result.
+	 */
+	public static DLNAComplianceResult checkCompliance(ImageInfo imageInfo, ImageFormat format) {
+		InternalComplianceResult complianceResult = new InternalComplianceResult();
+		if (imageInfo == null || format == null) {
+			return DLNAComplianceResult.toDLNAComplianceResult(complianceResult);
+		}
+		try {
+			DLNAImageProfile largestProfile;
+			switch (format) {
+				case JPEG:
+					// Since JPEG_RES_H_V has no upper limit, any resolution is ok
+					complianceResult.maxWidth = Integer.MAX_VALUE;
+					complianceResult.maxHeight = Integer.MAX_VALUE;
+					complianceResult.resolutionCorrect = true;
+					checkJPEG(imageInfo, complianceResult);
+					break;
+				case GIF:
+					largestProfile = DLNAImageProfile.GIF_LRG;
+					complianceResult.maxWidth = largestProfile.getMaxWidth();
+					complianceResult.maxHeight = largestProfile.getMaxHeight();
+					complianceResult.resolutionCorrect =
+						imageInfo.getWidth() <= largestProfile.getMaxWidth() &&
+						imageInfo.getHeight() <= largestProfile.getMaxHeight();
+					checkGIF(imageInfo, complianceResult);
+					break;
+				case PNG:
+					largestProfile = DLNAImageProfile.PNG_LRG;
+					complianceResult.maxWidth = largestProfile.getMaxWidth();
+					complianceResult.maxHeight = largestProfile.getMaxHeight();
+					complianceResult.resolutionCorrect =
+						imageInfo.getWidth() <= largestProfile.getMaxWidth() &&
+						imageInfo.getHeight() <= largestProfile.getMaxHeight();
+					checkPNG(imageInfo, complianceResult);
+					break;
+				default:
+					// No other formats are compliant
+			}
+		} catch (MetadataException e) {
+			complianceResult.formatCorrect = false;
+			complianceResult.colorsCorrect = false;
+			LOGGER.debug("MetadataException in checkCompliance: {}", e.getMessage());
+			LOGGER.trace("", e);
+		}
+
+		return DLNAComplianceResult.toDLNAComplianceResult(complianceResult);
+	}
+
+	/**
+	 * Validates DLNA compliance for {@code imageInfo} against a specific
+	 * {@link DLNAImageProfile}. Validation is performed on resolution, format,
+	 * format version, format compression and color coding. The validation
+	 * result is returned in a {@link DLNAComplianceResult} data structure.
+	 *
+	 * @param imageInfo the {@link ImageInfo} for the image to check for DLNA
+	 *                  compliance.
+	 * @param profile the {@link DLNAImageProfile} to check for DLNA compliance
+	 *               against.
+	 * @return The validation result.
+	 */
+	public static DLNAComplianceResult checkCompliance(ImageInfo imageInfo, DLNAImageProfile profile) {
+		if (imageInfo == null || profile == null) {
+			return DLNAComplianceResult.toDLNAComplianceResult(new InternalComplianceResult());
+		}
+		return profile.checkCompliance(imageInfo);
+	}
+
+	/**
+	 * Validates DLNA compliance for {@code image} against this
+	 * {@link DLNAImageProfile}. Validation is performed on resolution, format,
+	 * format version, format compression and color coding. The validation
+	 * result is returned in a {@link DLNAComplianceResult} data structure.
+	 *
+	 * @param imageInfo the {@link ImageInfo} for the image to check for DLNA
+	 *                  compliance.
+	 * @return The validation result.
+	 */
+	public DLNAComplianceResult checkCompliance(ImageInfo imageInfo) {
+		InternalComplianceResult complianceResult = new InternalComplianceResult();
+		complianceResult.maxWidth = horizontal;
+		complianceResult.maxHeight = vertical;
+		if (imageInfo == null) {
+			return DLNAComplianceResult.toDLNAComplianceResult(complianceResult);
+		}
+		if (this.equals(DLNAImageProfile.JPEG_RES_H_V)) {
+			complianceResult.resolutionCorrect = true;
+		} else {
+			complianceResult.resolutionCorrect =
+				imageInfo.getWidth() <= horizontal && imageInfo.getHeight() <= vertical;
+		}
+
+		try {
+			switch (this.toInt()) {
+				case DLNAImageProfile.GIF_LRG_INT:
+					checkGIF(imageInfo, complianceResult);
+					break;
+				case DLNAImageProfile.JPEG_LRG_INT:
+					checkJPEG(imageInfo, complianceResult);
+					break;
+				case DLNAImageProfile.JPEG_MED_INT:
+					checkJPEG(imageInfo, complianceResult);
+					break;
+				case DLNAImageProfile.JPEG_RES_H_V_INT:
+					checkJPEG(imageInfo, complianceResult);
+					break;
+				case DLNAImageProfile.JPEG_SM_INT:
+					checkJPEG(imageInfo, complianceResult);
+					break;
+				case DLNAImageProfile.JPEG_TN_INT:
+					checkJPEG(imageInfo, complianceResult);
+					break;
+				case DLNAImageProfile.PNG_LRG_INT:
+					checkPNG(imageInfo, complianceResult);
+					break;
+				case DLNAImageProfile.PNG_TN_INT:
+					checkPNG(imageInfo, complianceResult);
+					break;
+				default:
+					throw new IllegalStateException("Illegal DLNA media profile");
+			}
+		} catch (MetadataException e) {
+			complianceResult.formatCorrect = false;
+			complianceResult.colorsCorrect = false;
+			LOGGER.debug("MetadataException in checkCompliance: {}", e.getMessage());
+			LOGGER.trace("", e);
+		}
+
+		return DLNAComplianceResult.toDLNAComplianceResult(complianceResult);
 	}
 
 	@Override
@@ -337,5 +609,77 @@ public class DLNAImageProfile {
 			return false;
 		}
 		return true;
+	}
+
+	/**
+	 * Internal mutable compliance result data structure.
+	 */
+	protected static class InternalComplianceResult {
+		public boolean resolutionCorrect = false;
+		public boolean formatCorrect = false;
+		public boolean colorsCorrect = false;
+		public int maxWidth;
+		public int maxHeight;
+	}
+
+	/**
+	 * Immutable compliance result data structure.
+	 */
+	public static class DLNAComplianceResult {
+		private final boolean resolutionCorrect;
+		private final boolean formatCorrect;
+		private final boolean colorsCorrect;
+		private final int maxWidth;
+		private final int maxHeight;
+
+		public DLNAComplianceResult(boolean resolutionCorrect, boolean formatCorrect, boolean colorsCorrect, int maxWidth, int maxHeight) {
+			this.resolutionCorrect = resolutionCorrect;
+			this.formatCorrect = formatCorrect;
+			this.colorsCorrect = colorsCorrect;
+			this.maxWidth = maxWidth;
+			this.maxHeight = maxHeight;
+		}
+
+		protected static DLNAComplianceResult toDLNAComplianceResult(InternalComplianceResult result) {
+			return new DLNAComplianceResult(result.resolutionCorrect, result.formatCorrect, result.colorsCorrect, result.maxWidth, result.maxHeight);
+		}
+
+		/**
+		 * @return Whether the resolution is within DLNA limits for the given
+		 *         profile.
+		 */
+		public boolean isResolutionCorrect() {
+			return resolutionCorrect;
+		}
+
+		/**
+		 * @return Whether the format/compression is compliant for the given
+		 *         profile.
+		 */
+		public boolean isFormatCorrect() {
+			return formatCorrect;
+		}
+
+		/**
+		 * @return Whether the color coding is compliant for the given profile.
+		 */
+		public boolean isColorsCorrect() {
+			return colorsCorrect;
+		}
+
+		/**
+		 * @return The maximum width.
+		 */
+		public int getMaxWidth() {
+			return maxWidth;
+		}
+
+		/**
+		 * @return the maximum height.
+		 */
+		public int getMaxHeight() {
+			return maxHeight;
+		}
+
 	}
 }

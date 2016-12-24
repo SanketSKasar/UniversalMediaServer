@@ -34,16 +34,15 @@ import net.pms.network.HTTPResource;
 import net.pms.util.CoverSupplier;
 import net.pms.util.CoverUtil;
 import net.pms.util.FileUtil;
+import net.pms.util.Image;
+import net.pms.util.ImageFormat;
 import net.pms.util.ImagesUtil;
-import net.pms.util.ImagesUtil.ImageFormat;
 import net.pms.util.ImagesUtil.ScaleType;
 import net.pms.util.MpegUtil;
 import net.pms.util.ProcessUtil;
 import static net.pms.util.StringUtil.*;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import org.apache.commons.imaging.ImageInfo.ColorType;
-import org.apache.commons.imaging.ImageReadException;
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
 import org.jaudiotagger.audio.AudioHeader;
@@ -138,6 +137,8 @@ public class DLNAMediaInfo implements Cloneable {
 
 	private volatile DLNAThumbnail thumb = null;
 
+	private volatile ImageInfo imageInfo = null;
+
 	/**
 	 * @deprecated Use standard getter and setter to access this variable.
 	 */
@@ -181,30 +182,6 @@ public class DLNAMediaInfo implements Cloneable {
 	public boolean isExternalSubsParsed() {
 		return externalSubsParsed;
 	}
-
-	/**
-	 * @deprecated Use standard getter and setter to access this variable.
-	 */
-	@Deprecated
-	public String model;
-
-	/**
-	 * @deprecated Use standard getter and setter to access this variable.
-	 */
-	@Deprecated
-	public int exposure;
-
-	/**
-	 * @deprecated Use standard getter and setter to access this variable.
-	 */
-	@Deprecated
-	public int orientation;
-
-	/**
-	 * @deprecated Use standard getter and setter to access this variable.
-	 */
-	@Deprecated
-	public int iso;
 
 	/**
 	 * @deprecated Use standard getter and setter to access this variable.
@@ -877,11 +854,12 @@ public class DLNAMediaInfo implements Cloneable {
 				if (!thumbOnly) {
 					try {
 						ffmpeg_parsing = false;
-						ImagesUtil.parseImageByImaging(file, this);
+						ImagesUtil.parseImage(file, this);
 						container = codecV;
 						imageCount++;
-					} catch (IOException | ImageReadException e) {
-						LOGGER.debug("Error when parsing image ({}) with Imaging, switching to FFmpeg.", file.getAbsolutePath());
+					} catch (IOException e) {
+						LOGGER.debug("Error parsing image \"{}\", switching to FFmpeg: {}", file.getAbsolutePath(), e.getMessage());
+						LOGGER.trace("", e);
 						ffmpeg_parsing = true;
 					}
 				}
@@ -892,7 +870,7 @@ public class DLNAMediaInfo implements Cloneable {
 					// Create the thumbnail image
 					try {
 						// This will fail for any image formats not supported by ImageIO
-						thumb = DLNAThumbnail.toThumbnail(Files.newInputStream(file.toPath()), 320, 320, ScaleType.MAX, ImageFormat.SOURCE);
+						thumb = DLNAThumbnail.toThumbnail(Files.newInputStream(file.toPath()), 320, 320, ScaleType.MAX, ImageFormat.SOURCE, false);
 						thumbready = true;
 					} catch (IOException e) {
 						LOGGER.debug("Error generating thumbnail for \"{}\": {}", file.getName(), e.getMessage());
@@ -2164,19 +2142,19 @@ public class DLNAMediaInfo implements Cloneable {
 	}
 
 	/**
-	 * @return the bitsPerPixel
-	 * @since 1.50.0
+	 * @return The {@link ImageInfo} for this media or {@code null}.
 	 */
-	public int getBitsPerPixel() {
-		return bitsPerPixel;
+	public ImageInfo getImageInfo() {
+		return imageInfo;
 	}
 
 	/**
-	 * @param bitsPerPixel the bitsPerPixel to set
-	 * @since 1.50.0
+	 * Sets the {@link ImageInfo} for this media.
+	 *
+	 * @param imageInfo the {@link ImageInfo}.
 	 */
-	public void setBitsPerPixel(int bitsPerPixel) {
-		this.bitsPerPixel = bitsPerPixel;
+	public void setImageInfo(ImageInfo imageInfo) {
+		this.imageInfo = imageInfo;
 	}
 
 	/**
@@ -2335,67 +2313,11 @@ public class DLNAMediaInfo implements Cloneable {
 	}
 
 	/**
-	 * @return the model
-	 * @since 1.50.0
-	 */
-	public String getModel() {
-		return model;
-	}
-
-	/**
-	 * @param model the model to set
-	 * @since 1.50.0
-	 */
-	public void setModel(String model) {
-		this.model = model;
-	}
-
-	/**
-	 * @return the exposure
-	 * @since 1.50.0
-	 */
-	public int getExposure() {
-		return exposure;
-	}
-
-	/**
-	 * @param exposure the exposure to set
-	 * @since 1.50.0
-	 */
-	public void setExposure(int exposure) {
-		this.exposure = exposure;
-	}
-
-	/**
 	 * @return the orientation
 	 * @since 1.50.0
 	 */
 	public int getOrientation() {
-		return orientation;
-	}
-
-	/**
-	 * @param orientation the orientation to set
-	 * @since 1.50.0
-	 */
-	public void setOrientation(int orientation) {
-		this.orientation = orientation;
-	}
-
-	/**
-	 * @return the iso
-	 * @since 1.50.0
-	 */
-	public int getIso() {
-		return iso;
-	}
-
-	/**
-	 * @param iso the iso to set
-	 * @since 1.50.0
-	 */
-	public void setIso(int iso) {
-		this.iso = iso;
+		return imageInfo != null ? imageInfo.getExifOrientation() : 0;
 	}
 
 	/**
@@ -2746,15 +2668,5 @@ public class DLNAMediaInfo implements Cloneable {
 
 	public boolean isDVDResolution() {
 		return (width == 720 && height == 576) || (width == 720 && height == 480);
-	}
-
-	private ColorType colorType;
-
-	public void setColorType(ColorType colorType) {
-		this.colorType = colorType;
-	}
-
-	public ColorType getColorType() {
-		return colorType;
 	}
 }

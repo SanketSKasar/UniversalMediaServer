@@ -40,7 +40,6 @@ import net.pms.PMS;
 import net.pms.dlna.DLNAMediaInfo;
 import net.pms.dlna.DLNAThumbnail;
 import net.pms.dlna.DLNAThumbnailInputStream;
-import net.pms.util.ImagesUtil.ImageFormat;
 
 /**
  * This is an singleton class for providing and caching generic file extension
@@ -54,13 +53,23 @@ public enum GenericIcons {
 	private final BufferedImage genericImageIcon = readBufferedImage("formats/image.png");
 	private final BufferedImage genericVideoIcon = readBufferedImage("formats/video.png");
 	private final BufferedImage genericUnknownIcon = readBufferedImage("formats/unknown.png");
-	private final DLNAThumbnail genericFolderThumbnail = DLNAThumbnail.toThumbnail(getResourceAsStream("thumbnail-folder-256.png"));
+	private final DLNAThumbnail genericFolderThumbnail;
 	private final ReentrantLock cacheLock = new ReentrantLock();
 	/**
 	 * All access to {@link #cache} must be protected with {@link #cacheLock}.
 	 */
 	private final Map<ImageFormat, Map<IconType, Map<String, DLNAThumbnail>>> cache = new HashMap<>();
 	private static final Logger LOGGER = LoggerFactory.getLogger(GenericIcons.class);
+
+	private GenericIcons() {
+		DLNAThumbnail thumbnail;
+		try {
+			thumbnail = DLNAThumbnail.toThumbnail(getResourceAsStream("thumbnail-folder-256.png"));
+		} catch (IOException e) {
+			thumbnail = null;
+		}
+		genericFolderThumbnail = thumbnail;
+	}
 
 	public DLNAThumbnailInputStream getGenericIcon(DLNAMediaInfo media) {
 		ImageFormat imageFormat = ImageFormat.PNG;
@@ -182,7 +191,7 @@ public enum GenericIcons {
 				g.dispose();
 			}
 		}
-		return out != null ? new DLNAThumbnail(out.toByteArray(), image.getWidth(), image.getHeight(), imageFormat, false)  : null;
+		return out != null ? new DLNAThumbnail(out.toByteArray(), imageFormat, image, null, false)  : null;
 	}
 
 	/**

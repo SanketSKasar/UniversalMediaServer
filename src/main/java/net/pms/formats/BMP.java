@@ -2,7 +2,7 @@ package net.pms.formats;
 
 public class BMP extends JPG {
 	/**
-	 * {@inheritDoc} 
+	 * {@inheritDoc}
 	 */
 	@Override
 	public Identifier getIdentifier() {
@@ -14,7 +14,7 @@ public class BMP extends JPG {
 	 */
 	@Override
 	public String[] getSupportedExtensions() {
-		return new String[] { "bmp" };
+		return new String[] { "bmp", "webp", "wbmp", "pcx" };
 	}
 
 	@Override

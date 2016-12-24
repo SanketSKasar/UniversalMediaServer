@@ -1,10 +1,10 @@
 package net.pms.formats;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.util.List;
-import net.coobird.thumbnailator.Thumbnails;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.pms.PMS;
+import net.pms.configuration.FormatConfiguration;
 import net.pms.configuration.PmsConfiguration;
 import net.pms.configuration.RendererConfiguration;
 import net.pms.dlna.DLNAMediaInfo;
@@ -13,6 +13,8 @@ import net.pms.dlna.InputFile;
 import net.pms.encoders.RAWThumbnailer;
 import net.pms.io.OutputParams;
 import net.pms.io.ProcessWrapperImpl;
+import net.pms.util.ImageFormat;
+import net.pms.util.ImagesUtil.ScaleType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,31 +119,26 @@ public class RAW extends JPG {
 			pw.runInSameThread();
 
 			List<String> list = pw.getOtherResults();
+			Pattern pattern = Pattern.compile("^Output size:\\s*(\\d+)\\s*x\\s*(\\d+)");
+			Matcher matcher;
 			for (String s : list) {
-				if (s.startsWith("Thumb size:  ")) {
-					String sz = s.substring(13);
-					media.setWidth(Integer.parseInt(sz.substring(0, sz.indexOf('x')).trim()));
-					media.setHeight(Integer.parseInt(sz.substring(sz.indexOf('x') + 1).trim()));
+				matcher = pattern.matcher(s);
+				if (matcher.find()) {
+					media.setWidth(Integer.parseInt(matcher.group(1)));
+					media.setHeight(Integer.parseInt(matcher.group(2)));
 					break;
 				}
 			}
+			media.setSize(file.getSize());
+			media.setCodecV(FormatConfiguration.RAW);
+			media.setContainer(FormatConfiguration.RAW);
 
 			if (media.getWidth() > 0) {
 				byte[] image = RAWThumbnailer.getThumbnail(params, file.getFile().getAbsolutePath());
-				media.setSize(image.length);
-				// XXX why the image size is set to thumbnail size and the codecV and container is set to RAW when thumbnail is in the JPEG format
-				media.setCodecV("raw");
-				media.setContainer("raw");
 
 				if (configuration.getImageThumbnailsEnabled()) {
-					// Resize the thumbnail image using the Thumbnailator library
-					ByteArrayOutputStream out = new ByteArrayOutputStream();
-					Thumbnails.of(new ByteArrayInputStream(image))
-								.size(320, 180)
-								.outputFormat("JPEG")
-								.outputQuality(1.0f)
-								.toOutputStream(out);
-					media.setThumb(DLNAThumbnail.toThumbnail(out.toByteArray()));
+					//TODO: Adjust
+					media.setThumb(DLNAThumbnail.toThumbnail(image, 320, 320, ScaleType.MAX, ImageFormat.JPEG, false));
 				}
 			}
 
